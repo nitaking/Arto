@@ -136,6 +136,11 @@ declare global {
         show: typeof actionFeedback.show;
       };
       editor: {
+        /** Put text into a new editor in `host`; changes go to the callback. */
+        mount: typeof sourceEditor.mount;
+        unmount: typeof sourceEditor.unmount;
+        /** The editor's text right now, with the key it was mounted under. */
+        snapshot: typeof sourceEditor.snapshot;
         /** Put the editor's caret on a source line and scroll it there. */
         revealLine: typeof sourceEditor.revealLine;
         /** Bring the preview's block for a source line into view. */
@@ -246,7 +251,7 @@ export function init(): void {
   // The scrollbar, brought up to a native width by the pointer arriving at
   // the edge it is on.
   setupScrollbarReach();
-  // The source editor's keys, and the link between its caret and the page.
+  // The link between the source editor and the page beside it.
   sourceEditor.setup();
   const trackAfterRender = (): void => {
     refreshReadingPosition();
@@ -424,6 +429,9 @@ export function init(): void {
       show: actionFeedback.show,
     },
     editor: {
+      mount: sourceEditor.mount,
+      unmount: sourceEditor.unmount,
+      snapshot: sourceEditor.snapshot,
       revealLine: sourceEditor.revealLine,
       followLine: sourceEditor.followLine,
     },

@@ -11,6 +11,7 @@
 //! These methods read and write Dioxus `Signal`s, so they are exercised
 //! through the app; the behaviour they route to is tested in `crate::editor`.
 
+use dioxus::document;
 use dioxus::prelude::*;
 use std::io;
 use std::path::PathBuf;
@@ -75,7 +76,18 @@ impl AppState {
     /// Go back to reading. With unsaved edits this only asks: the session
     /// shows the question, and [`Self::save_and_stop_editing`] or
     /// [`Self::discard_edits`] answer it.
+    ///
+    /// The editor's text is collected first, so a keystroke still on its way
+    /// is not mistaken for no change at all.
     pub fn stop_editing(&mut self) {
+        let mut state = *self;
+        spawn_detached(async move {
+            state.flush_editor().await;
+            state.stop_editing_now();
+        });
+    }
+
+    fn stop_editing_now(&mut self) {
         let can_close = match self.editor.write().as_mut() {
             Some(session) if session.conflict().is_some() => {
                 show_action_feedback("Choose which version to keep first");
@@ -107,6 +119,14 @@ impl AppState {
     /// time that file is edited, which loses nothing and does not stand
     /// between the reader and the link they followed.
     pub fn suspend_editing(&mut self) {
+        let mut state = *self;
+        spawn_detached(async move {
+            state.flush_editor().await;
+            state.suspend_editing_now();
+        });
+    }
+
+    fn suspend_editing_now(&mut self) {
         self.keep_draft();
         let dirty = self
             .editor
@@ -120,17 +140,58 @@ impl AppState {
     }
 
     pub fn save_document(&mut self) {
-        self.save_then(false);
+        let mut state = *self;
+        spawn_detached(async move {
+            state.flush_editor().await;
+            state.save_then(false);
+        });
     }
 
     pub fn save_and_stop_editing(&mut self) {
-        self.save_then(true);
+        let mut state = *self;
+        spawn_detached(async move {
+            state.flush_editor().await;
+            state.save_then(true);
+        });
     }
 
-    /// The reader typed.
-    pub fn edit_buffer(&mut self, text: String) {
+    /// The editor mounted under `view_key` changed its text.
+    ///
+    /// A key that is not the session's current one is a view that no longer
+    /// shows this buffer — an earlier generation, or another session's — and
+    /// what it says is dropped rather than written into the wrong buffer.
+    pub fn edit_buffer(&mut self, view_key: &str, text: String) {
+        let current = self.editor.peek().as_ref().map(EditSession::view_key);
+        if current.as_deref() != Some(view_key) {
+            tracing::debug!(view_key, "Ignoring an edit from a stale editor view");
+            return;
+        }
         if let Some(session) = self.editor.write().as_mut() {
             session.edit(text);
+        }
+    }
+
+    /// Take the editor's text as it is this moment into the session.
+    ///
+    /// Every change is reported as it happens, but a report is a message, and
+    /// a save or a close that is decided on the Rust side could otherwise
+    /// overtake the keystroke before it. This asks the editor directly.
+    pub async fn flush_editor(&mut self) {
+        #[derive(serde::Deserialize)]
+        struct EditorSnapshot {
+            key: String,
+            text: String,
+        }
+        if self.editor.peek().is_none() {
+            return;
+        }
+        let snapshot = document::eval("return window.Arto?.editor?.snapshot?.() ?? null;")
+            .join::<Option<EditorSnapshot>>()
+            .await;
+        match snapshot {
+            Ok(Some(snapshot)) => self.edit_buffer(&snapshot.key, snapshot.text),
+            Ok(None) => {}
+            Err(e) => tracing::warn!(?e, "Could not read the editor's text before acting on it"),
         }
     }
 
@@ -246,6 +307,11 @@ impl AppState {
                 if stop {
                     self.end_editing(true);
                 }
+                return;
+            }
+            if session.is_saving() {
+                drop(guard);
+                show_action_feedback("Still saving");
                 return;
             }
             // On disk before the file is touched, so that a write that never

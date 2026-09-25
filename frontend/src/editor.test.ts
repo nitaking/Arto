@@ -1,98 +1,6 @@
 import { afterEach, describe, expect, test } from "vitest";
-import {
-  continueList,
-  followLine,
-  indentBlock,
-  insideLiteralBlock,
-  lineAt,
-  offsetOfLine,
-  outdentBlock,
-} from "./editor";
+import { followLine, mount, snapshot, unmount } from "./editor";
 import { editorForwardsKey } from "./keyboard-interceptor";
-
-describe("lineAt / offsetOfLine", () => {
-  const text = "one\ntwo\n\nfour";
-
-  test("name the same line from both ends", () => {
-    for (let line = 1; line <= 4; line++) {
-      expect(lineAt(text, offsetOfLine(text, line))).toBe(line);
-    }
-  });
-
-  test("count the caret after a newline as the next line", () => {
-    expect(lineAt(text, 0)).toBe(1);
-    expect(lineAt(text, 3)).toBe(1);
-    expect(lineAt(text, 4)).toBe(2);
-  });
-
-  test("clamp to the text", () => {
-    expect(offsetOfLine(text, 0)).toBe(0);
-    expect(offsetOfLine(text, 99)).toBe(text.length);
-    expect(lineAt(text, 999)).toBe(4);
-  });
-});
-
-describe("continueList", () => {
-  test("repeats a bullet with its indentation", () => {
-    expect(continueList("  - item")).toEqual({ insert: "\n  - " });
-    expect(continueList("* item")).toEqual({ insert: "\n* " });
-  });
-
-  test("counts an ordered list on", () => {
-    expect(continueList("9. ninth")).toEqual({ insert: "\n10. " });
-    expect(continueList("1) first")).toEqual({ insert: "\n2) " });
-  });
-
-  test("starts the next task unchecked", () => {
-    expect(continueList("- [x] done")).toEqual({ insert: "\n- [ ] " });
-  });
-
-  test("ends the list on an empty item", () => {
-    expect(continueList("- ")).toEqual({ end: true });
-    expect(continueList("3. ")).toEqual({ end: true });
-    expect(continueList("- [ ] ")).toEqual({ end: true });
-  });
-
-  test("leaves anything else alone", () => {
-    expect(continueList("plain text")).toBeNull();
-    expect(continueList("-not a list")).toBeNull();
-    expect(continueList("")).toBeNull();
-  });
-});
-
-describe("insideLiteralBlock", () => {
-  const at = (text: string) => insideLiteralBlock(text.replace("|", ""), text.indexOf("|"));
-
-  test("is false in ordinary prose", () => {
-    expect(at("- a\n- b|")).toBe(false);
-  });
-
-  test("is true inside a fence and false after it closes", () => {
-    expect(at("```\n- a|")).toBe(true);
-    expect(at("```sh\n- a\n```\n- b|")).toBe(false);
-    expect(at("~~~\n```\n- a|")).toBe(true);
-  });
-
-  test("is true inside front matter", () => {
-    expect(at("---\ntags:\n- a|")).toBe(true);
-    expect(at("---\ntitle: x\n---\n- a|")).toBe(false);
-  });
-});
-
-describe("indentBlock / outdentBlock", () => {
-  test("indent every non-empty line by one step", () => {
-    expect(indentBlock("a\n\nb")).toBe("  a\n\n  b");
-  });
-
-  test("outdent removes at most one step", () => {
-    expect(outdentBlock("    a\n  b\nc\n\td")).toBe("  a\nb\nc\nd");
-  });
-
-  test("outdent undoes indent", () => {
-    const block = "- a\n  - b\n\ntext";
-    expect(outdentBlock(indentBlock(block))).toBe(block);
-  });
-});
 
 describe("editorForwardsKey", () => {
   test("offers only primary-modifier chords to the bindings", () => {
@@ -100,6 +8,34 @@ describe("editorForwardsKey", () => {
     expect(editorForwardsKey({ metaKey: false, ctrlKey: true }, true)).toBe(false);
     expect(editorForwardsKey({ metaKey: false, ctrlKey: true }, false)).toBe(true);
     expect(editorForwardsKey({ metaKey: false, ctrlKey: false }, false)).toBe(false);
+  });
+});
+
+describe("mount / snapshot", () => {
+  afterEach(() => {
+    unmount();
+    document.body.innerHTML = "";
+  });
+
+  test("hands back exactly the text it was given, under its key", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const text = "# 設計\n\n- [ ] a\n\n```sh\nx\n```\n";
+    mount(host, text, "7-0", () => {});
+    expect(snapshot()).toEqual({ key: "7-0", text });
+  });
+
+  test("a second mount replaces the first", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    mount(host, "one", "1-0", () => {});
+    mount(host, "two", "2-0", () => {});
+    expect(snapshot()).toEqual({ key: "2-0", text: "two" });
+    expect(host.querySelectorAll(".cm-editor")).toHaveLength(1);
+  });
+
+  test("nothing is mounted after unmount", () => {
+    expect(snapshot()).toBeNull();
   });
 });
 

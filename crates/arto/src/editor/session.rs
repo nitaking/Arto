@@ -128,8 +128,17 @@ impl EditSession {
         session
     }
 
+    #[cfg(test)]
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    /// The name the editor view showing this buffer is mounted under: the
+    /// session and the generation of its buffer. A change reported under any
+    /// other key is from a view that is no longer this buffer's, and is
+    /// ignored.
+    pub fn view_key(&self) -> String {
+        format!("{}-{}", self.id, self.generation)
     }
 
     pub fn path(&self) -> &Path {
@@ -144,6 +153,7 @@ impl EditSession {
         self.revision
     }
 
+    #[cfg(test)]
     pub fn generation(&self) -> u64 {
         self.generation
     }
@@ -655,6 +665,17 @@ mod tests {
     #[test]
     fn every_session_has_its_own_id() {
         assert_ne!(open("a\n").id(), open("a\n").id());
+    }
+
+    #[test]
+    fn a_buffer_replaced_from_outside_has_a_new_view_key() {
+        let mut s = open("a\n");
+        let key = s.view_key();
+        s.edit("b\n");
+        assert_eq!(s.view_key(), key, "typing keeps the view");
+        s.disk_changed(Some(snap("c\n")));
+        s.take_theirs();
+        assert_ne!(s.view_key(), key, "the disk's text is a new view");
     }
 
     #[test]

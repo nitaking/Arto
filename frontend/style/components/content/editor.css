@@ -151,25 +151,156 @@
   gap: 6px;
 }
 
-.editor-input {
+/* The editor itself. The document inside it is always the Markdown source;
+   the live preview (`frontend/src/live-preview.ts`) only decides how each
+   piece is drawn, so everything below is appearance and nothing here can
+   change a byte of the file. */
+.editor-host {
   flex: 1;
   min-height: 0;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 16px 20px 40vh;
-  border: none;
-  outline: none;
-  resize: none;
-  background: transparent;
-  color: var(--text-color);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.6;
-  tab-size: 2;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  caret-color: var(--accent-color);
+  display: flex;
+
+  .cm-editor {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 15px;
+
+    &.cm-focused {
+      outline: none;
+    }
+  }
+
+  .cm-scroller {
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    overflow: auto;
+  }
+
+  .cm-content {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 20px 28px 40vh;
+    caret-color: var(--accent-color);
+  }
+
+  .cm-cursor {
+    border-left-color: var(--accent-color);
+  }
+
+  .cm-selectionBackground,
+  &.cm-focused .cm-selectionBackground {
+    background: color-mix(in srgb, var(--accent-bg) 22%, transparent) !important;
+  }
+
+  /* Headings: drawn at the size the page gives them. */
+  .cm-md-h1,
+  .cm-md-h2,
+  .cm-md-h3,
+  .cm-md-h4,
+  .cm-md-h5,
+  .cm-md-h6 {
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .cm-md-h1 {
+    font-size: 1.9em;
+    padding-top: 0.4em;
+  }
+  .cm-md-h2 {
+    font-size: 1.45em;
+    padding-top: 0.35em;
+  }
+  .cm-md-h3 {
+    font-size: 1.2em;
+    padding-top: 0.25em;
+  }
+  .cm-md-h4 {
+    font-size: 1.05em;
+  }
+  .cm-md-h5,
+  .cm-md-h6 {
+    font-size: 0.95em;
+    color: var(--text-secondary);
+  }
+
+  .cm-md-strong {
+    font-weight: 600;
+  }
+  .cm-md-em {
+    font-style: italic;
+  }
+  .cm-md-strike {
+    text-decoration: line-through;
+    color: var(--text-secondary);
+  }
+  .cm-md-code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    padding: 0.1em 0.3em;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+  }
+  .cm-md-link {
+    color: var(--link-color);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--link-color) 40%, transparent);
+    text-underline-offset: 2px;
+  }
+
+  .cm-md-faint,
+  .cm-md-listmark {
+    color: var(--text-secondary);
+  }
+
+  .cm-md-bullet {
+    display: inline-block;
+    color: var(--text-secondary);
+    width: 0.8em;
+  }
+
+  .cm-md-task {
+    margin: 0 0.35em 0 0;
+    vertical-align: -0.1em;
+    cursor: pointer;
+  }
+
+  .cm-md-quote {
+    border-left: 3px solid var(--border-color);
+    padding-left: 12px;
+    color: var(--text-secondary);
+  }
+
+  .cm-md-codeblock,
+  .cm-md-table,
+  .cm-md-html,
+  .cm-md-frontmatter {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .cm-md-codeblock,
+  .cm-md-frontmatter {
+    background: var(--bg-secondary);
+    padding-left: 12px;
+  }
+
+  .cm-md-frontmatter {
+    color: var(--text-secondary);
+  }
+
+  .cm-md-hr {
+    background: linear-gradient(var(--border-color), var(--border-color)) center / 100% 2px
+      no-repeat;
+  }
+
+  .cm-md-hidden-text {
+    color: transparent;
+  }
 }
 
 @media print {

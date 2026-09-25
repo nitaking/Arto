@@ -138,7 +138,9 @@ function fieldOf(target: EventTarget | null): "search" | "palette" | "editor" | 
   if (!(target instanceof HTMLElement)) return undefined;
   if (target.classList.contains("search-input")) return "search";
   if (target.classList.contains("palette-input")) return "palette";
-  if (target.classList.contains("editor-input")) return "editor";
+  // The source editor's typing surface is CodeMirror's contenteditable,
+  // somewhere inside the host the app renders.
+  if (target.closest(".editor-host")) return "editor";
   return undefined;
 }
 

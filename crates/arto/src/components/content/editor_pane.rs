@@ -7,6 +7,7 @@
 //! when the file and the buffer have parted, a question that has to be
 //! answered before the next save.
 
+use dioxus::document;
 use dioxus::prelude::*;
 use std::time::Duration;
 
@@ -86,28 +87,14 @@ pub fn EditorPane() -> Element {
     let mut state = use_context::<AppState>();
 
     let view = use_memo(move || state.editor.read().as_ref().map(PaneView::of));
-    // Which text the textarea is showing: the session, and the generation of
-    // its buffer. The id matters as much as the generation — every session
-    // starts at generation 0, and a textarea kept across two sessions would
-    // type one file's text into the other's buffer.
-    let generation = use_memo(move || {
+    // Which buffer the editor view is showing: the session, and the
+    // generation of its buffer. See `EditSession::view_key`.
+    let view_key = use_memo(move || {
         state
             .editor
             .read()
             .as_ref()
-            .map(|session| (session.id(), session.generation()))
-            .unwrap_or_default()
-    });
-    // The text a new textarea starts with. Read without subscribing: the
-    // textarea owns its text between generations, and handing it the buffer
-    // on every keystroke would race the reader's own typing.
-    let seed = use_memo(move || {
-        let _ = generation();
-        state
-            .editor
-            .peek()
-            .as_ref()
-            .map(|session| session.buffer().to_string())
+            .map(EditSession::view_key)
             .unwrap_or_default()
     });
     let revision = use_memo(move || {
@@ -278,25 +265,58 @@ pub fn EditorPane() -> Element {
                 }
             }
 
-            // Keyed by generation: a buffer replaced from outside (the disk's
-            // version taken, a draft discarded) is a new textarea, and the
-            // text the reader is typing is never written over from here.
-            for (id, g) in std::iter::once(generation()) {
-                textarea {
-                    key: "{id}-{g}",
-                    class: "editor-input",
-                    spellcheck: "false",
-                    autocomplete: "off",
-                    "autocorrect": "off",
-                    "autocapitalize": "off",
-                    "aria-label": "Markdown source",
-                    initial_value: "{seed}",
-                    oninput: move |evt| state.edit_buffer(evt.value()),
-                    onmounted: move |evt| async move {
-                        let _ = evt.set_focus(true).await;
+            // Keyed by view: a buffer replaced from outside (the disk's version
+            // taken, a draft discarded) is a new editor, and the text the
+            // reader is typing is never written over from here.
+            for key in std::iter::once(view_key()) {
+                div {
+                    key: "{key}",
+                    class: "editor-host",
+                    "data-editor-key": "{key}",
+                    onmounted: move |_| {
+                        let key = key.clone();
+                        // The text to start from, read without subscribing:
+                        // between generations the editor owns its text.
+                        let text = state
+                            .editor
+                            .peek()
+                            .as_ref()
+                            .filter(|session| session.view_key() == key)
+                            .map(|session| session.buffer().to_string());
+                        if let Some(text) = text {
+                            spawn(run_editor_view(state, key, text));
+                        }
                     },
                 }
             }
         }
+    }
+}
+
+/// Mount the editor in the host keyed `key`, and carry what is typed into the
+/// session for as long as that view lives.
+///
+/// Each change arrives as the whole text, under the key this channel was
+/// opened for; `AppState::edit_buffer` drops it if the session has since
+/// moved on to another view.
+async fn run_editor_view(mut state: AppState, key: String, text: String) {
+    let mut eval = document::eval(
+        r#"
+        const [key, text] = await dioxus.recv();
+        while (!window.Arto?.editor?.mount) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        const host = document.querySelector(`.editor-host[data-editor-key="${key}"]`);
+        if (host) {
+            window.Arto.editor.mount(host, text, key, (current) => dioxus.send(current));
+        }
+        "#,
+    );
+    if eval.send((key.as_str(), text)).is_err() {
+        tracing::warn!(key, "Could not hand the text to the editor");
+        return;
+    }
+    while let Ok(text) = eval.recv::<String>().await {
+        state.edit_buffer(&key, text);
     }
 }

@@ -8,13 +8,26 @@ page; the page becomes a live preview of it. `Cmd+S` saves, and **Done**
 The editor works on the source text exactly as it is on disk — nothing goes
 through the rendered HTML — so a save changes only what was typed.
 
+## Live preview
+
+The source is drawn as what it means: headings large, `**bold**` bold,
+`*italic*` italic, `` `code` `` in a code face, links as their text, bullets as
+bullets and task items as checkboxes. The markup — `#`, `**`, `[`, `](url)` —
+is hidden everywhere except on the line the caret is on, where the text is
+shown exactly as it is written. Fenced code, tables, HTML and front matter are
+always shown as they are.
+
+This is only how the text is displayed. The editor always holds the Markdown
+source itself; clicking a checkbox changes `[ ]` to `[x]` and nothing else.
+
 ## Moving between source and page
 
 - Moving the caret brings the block it is in into view in the preview.
 - Double-clicking a block in the preview puts the caret on its first source
   line.
-- `Tab` / `Shift+Tab` indent and outdent the selected lines; `Return` inside a
-  list item starts the next one (and ends the list on an empty item).
+- `Tab` / `Shift+Tab` indent and outdent; `Return` inside a list item or a
+  quote continues it, and ends it on an empty item. `Cmd+Z` / `Cmd+Shift+Z`
+  undo and redo.
 - Links, diagrams, formulas, the contents gutter and find all work on the
   preview while editing.
 
@@ -58,4 +71,5 @@ them; add them under `menuShortcuts`, or pick a preset again in
 - Only UTF-8 text files can be edited.
 - **Copy as Markdown** from the preview reads the file on disk, so while there
   are unsaved changes that move lines around it may copy the saved text.
-- The editor is a plain text area: no syntax highlighting.
+- Code inside fenced blocks is not syntax-highlighted in the editor (the
+  preview highlights it).
