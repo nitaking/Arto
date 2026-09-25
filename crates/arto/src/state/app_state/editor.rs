@@ -139,6 +139,18 @@ impl AppState {
         }
     }
 
+    /// Switch between editing in place and the source beside the page.
+    ///
+    /// Only the display changes: the editor keeps its text, caret and undo
+    /// history. Asked for while reading, it starts editing in the other mode.
+    pub fn switch_editor_mode(&mut self) {
+        let next = self.editor_mode.peek().switched();
+        self.editor_mode.set(next);
+        if self.editor.peek().is_none() {
+            self.start_editing();
+        }
+    }
+
     pub fn save_document(&mut self) {
         let mut state = *self;
         spawn_detached(async move {

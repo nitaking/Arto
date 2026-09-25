@@ -138,6 +138,9 @@ pub struct AppState {
     /// the version on disk it came from, and any conflict between them — and
     /// `crate::editor::EditSession` is where every change to it is decided.
     pub editor: Signal<Option<crate::editor::EditSession>>,
+    /// How the document is shown while it is edited. Kept after editing ends,
+    /// so the next edit in this window opens the way the last one was left.
+    pub editor_mode: Signal<crate::editor::EditorMode>,
     /// Which panel currently has keyboard focus (for context-aware keybindings).
     pub focused_panel: Signal<FocusedPanel>,
     /// Where the keyboard is in the panel: the row it is on, in whichever
@@ -206,6 +209,7 @@ impl AppState {
             current_scroll_anchor: Signal::new(ScrollAnchor::TOP),
             reload_trigger: Signal::new(0),
             editor: Signal::new(None),
+            editor_mode: Signal::new(Default::default()),
             focused_panel: Signal::new(FocusedPanel::Content),
             panel_cursor: Signal::new(None),
             left_hover_active: Signal::new(false),

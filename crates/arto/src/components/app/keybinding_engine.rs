@@ -251,5 +251,8 @@ pub(super) fn setup_keybinding_engine(
 /// is about the page, and the editor's keys are the editor's.
 fn is_editor_command(action: crate::keybindings::Action) -> bool {
     use crate::keybindings::Action;
-    matches!(action, Action::EditorSave | Action::EditorToggle)
+    matches!(
+        action,
+        Action::EditorSave | Action::EditorToggle | Action::EditorSwitchMode
+    )
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "vitest";
-import { followLine, mount, snapshot, unmount } from "./editor";
+import { followLine, mode, mount, setMode, snapshot, unmount } from "./editor";
 import { editorForwardsKey } from "./keyboard-interceptor";
 
 describe("editorForwardsKey", () => {
@@ -21,17 +21,31 @@ describe("mount / snapshot", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
     const text = "# 設計\n\n- [ ] a\n\n```sh\nx\n```\n";
-    mount(host, text, "7-0", () => {});
+    mount(host, text, "7-0", "rich", () => {});
     expect(snapshot()).toEqual({ key: "7-0", text });
   });
 
   test("a second mount replaces the first", () => {
     const host = document.createElement("div");
     document.body.appendChild(host);
-    mount(host, "one", "1-0", () => {});
-    mount(host, "two", "2-0", () => {});
+    mount(host, "one", "1-0", "rich", () => {});
+    mount(host, "two", "2-0", "source", () => {});
     expect(snapshot()).toEqual({ key: "2-0", text: "two" });
     expect(host.querySelectorAll(".cm-editor")).toHaveLength(1);
+  });
+
+  test("switching mode keeps the text, and draws the mode", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const text = "## Title\n\n**bold**\n";
+    mount(host, text, "3-0", "rich", () => {});
+    expect(host.querySelector(".cm-editor")?.classList.contains("cm-mode-rich")).toBe(true);
+
+    setMode("source");
+    expect(mode()).toBe("source");
+    expect(host.querySelector(".cm-editor")?.classList.contains("cm-mode-source")).toBe(true);
+    expect(host.querySelectorAll(".cm-editor")).toHaveLength(1);
+    expect(snapshot()).toEqual({ key: "3-0", text });
   });
 
   test("nothing is mounted after unmount", () => {

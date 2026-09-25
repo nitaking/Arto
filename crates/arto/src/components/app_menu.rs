@@ -85,6 +85,10 @@ pub fn AppMenu(on_close: EventHandler<()>) -> Element {
                     state.save_document();
                     close();
                 } }
+                ContextMenuItem { label: "Switch Rich / Source", shortcut: shortcut("editor.switch_mode"), icon: Some(IconName::Code), disabled: !has_file, on_click: move |_| {
+                    state.switch_editor_mode();
+                    close();
+                } }
                 ContextMenuSeparator {}
                 ContextMenuItem { label: "Copy File Path", shortcut: shortcut("clipboard.copy_file_path"), icon: Some(IconName::Copy), disabled: !has_file, on_click: { let f = current_file.clone(); move |_| {
                     if let Some(file) = &f { crate::utils::clipboard::copy_text(file.to_string_lossy()); }

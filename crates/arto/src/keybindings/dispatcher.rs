@@ -113,6 +113,7 @@ pub fn dispatch_action(action: &Action, mut state: AppState) {
         // --- Editor ---
         Action::EditorToggle => state.toggle_editing(),
         Action::EditorSave => state.save_document(),
+        Action::EditorSwitchMode => state.switch_editor_mode(),
 
         // --- Clipboard (path variants) ---
         Action::CopyFilePath => {

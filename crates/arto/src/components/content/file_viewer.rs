@@ -121,7 +121,12 @@ const PREVIEW_SETTLE: std::time::Duration = std::time::Duration::from_millis(150
 /// The page stays the same `FileViewer` while the source is edited, so links,
 /// diagrams, the contents and find all keep working on the preview.
 fn use_editor_preview(file: ReadSignal<PathBuf>, html: Signal<String>, mut state: AppState) {
+    // Rich mode draws no page beside the editor, so there is nothing to
+    // keep up to date until the page comes back.
     let revision = use_memo(move || {
+        if *state.editor_mode.read() == crate::editor::EditorMode::Rich {
+            return None;
+        }
         state
             .editor
             .read()

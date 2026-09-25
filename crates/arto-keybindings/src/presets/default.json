@@ -10,6 +10,10 @@
       "action": "editor.save"
     },
     {
+      "key": "Cmd+Shift+e",
+      "action": "editor.switch_mode"
+    },
+    {
       "key": "Cmd+n",
       "action": "window.new"
     },

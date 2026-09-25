@@ -12,7 +12,7 @@ use dioxus::prelude::*;
 use std::time::Duration;
 
 use crate::components::icon::{Icon, IconName};
-use crate::editor::{Conflict, EditSession, Notice};
+use crate::editor::{Conflict, EditSession, EditorMode, Notice};
 use crate::state::AppState;
 
 /// How long the buffer has to stand still before it is written as a draft.
@@ -124,6 +124,17 @@ pub fn EditorPane() -> Element {
     // And once more on the way out, whatever the way out is.
     use_drop(move || state.keep_draft());
 
+    // A mode switch redraws the editor it has rather than making a new one,
+    // so the caret, the scroll and the undo history all carry over.
+    let mode = state.editor_mode;
+    use_effect(move || {
+        let js = format!(
+            "window.Arto?.editor?.setMode?.({});",
+            serde_json::to_string(mode().as_str()).unwrap_or_default()
+        );
+        document::eval(&js);
+    });
+
     let Some(view) = view() else {
         return rsx! {};
     };
@@ -155,6 +166,30 @@ pub fn EditorPane() -> Element {
                 }
                 span { class: "editor-format", title: "Encoding and line endings the file is written with", "{view.format}" }
                 div { class: "editor-toolbar-spacer" }
+                div {
+                    class: "editor-mode-switch",
+                    role: "radiogroup",
+                    "aria-label": "Editor mode",
+                    for choice in [EditorMode::Rich, EditorMode::Source] {
+                        button {
+                            key: "{choice.as_str()}",
+                            class: "editor-mode-option",
+                            class: if mode() == choice { "active" },
+                            role: "radio",
+                            "aria-checked": if mode() == choice { "true" } else { "false" },
+                            title: match choice {
+                                EditorMode::Rich => "Edit the page in place",
+                                EditorMode::Source => "Markdown source beside the rendered page",
+                            },
+                            onclick: move |_| {
+                                if *state.editor_mode.peek() != choice {
+                                    state.switch_editor_mode();
+                                }
+                            },
+                            "{choice.label()}"
+                        }
+                    }
+                }
                 if can_save {
                     button {
                         class: "editor-button primary",
@@ -284,7 +319,8 @@ pub fn EditorPane() -> Element {
                             .filter(|session| session.view_key() == key)
                             .map(|session| session.buffer().to_string());
                         if let Some(text) = text {
-                            spawn(run_editor_view(state, key, text));
+                            let mode = *state.editor_mode.peek();
+                            spawn(run_editor_view(state, key, text, mode));
                         }
                     },
                 }
@@ -299,20 +335,20 @@ pub fn EditorPane() -> Element {
 /// Each change arrives as the whole text, under the key this channel was
 /// opened for; `AppState::edit_buffer` drops it if the session has since
 /// moved on to another view.
-async fn run_editor_view(mut state: AppState, key: String, text: String) {
+async fn run_editor_view(mut state: AppState, key: String, text: String, mode: EditorMode) {
     let mut eval = document::eval(
         r#"
-        const [key, text] = await dioxus.recv();
+        const [key, text, mode] = await dioxus.recv();
         while (!window.Arto?.editor?.mount) {
             await new Promise((resolve) => setTimeout(resolve, 10));
         }
         const host = document.querySelector(`.editor-host[data-editor-key="${key}"]`);
         if (host) {
-            window.Arto.editor.mount(host, text, key, (current) => dioxus.send(current));
+            window.Arto.editor.mount(host, text, key, mode, (current) => dioxus.send(current));
         }
         "#,
     );
-    if eval.send((key.as_str(), text)).is_err() {
+    if eval.send((key.as_str(), text, mode.as_str())).is_err() {
         tracing::warn!(key, "Could not hand the text to the editor");
         return;
     }

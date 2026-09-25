@@ -14,6 +14,13 @@
  * - Moving the caret brings the block it is in into view in the preview.
  * - Double-clicking a block in the preview puts the caret on its source.
  *
+ * # Modes
+ *
+ * `rich` draws the source with the live preview and stands alone; `source`
+ * shows every character as written, beside the rendered page. [`setMode`]
+ * switches in the same view — the text, caret, scroll and undo history stay —
+ * and the two editor-to-page links above only work while there is a page.
+ *
  * # Keys
  *
  * Every mount carries the key the app gave it (its session and generation),
@@ -25,11 +32,14 @@
 
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { drawSelection, EditorView, keymap } from "@codemirror/view";
 
 import { livePreview } from "./live-preview";
 import { readSourceRange } from "./source-range";
+
+/** How the document is shown while it is edited; see the module docs. */
+export type EditorMode = "rich" | "source";
 
 interface Mounted {
   view: EditorView;
@@ -37,6 +47,15 @@ interface Mounted {
 }
 
 let mounted: Mounted | null = null;
+let currentMode: EditorMode = "rich";
+const modeCompartment = new Compartment();
+
+function modeExtension(mode: EditorMode): Extension {
+  return [
+    mode === "rich" ? livePreview() : [],
+    EditorView.editorAttributes.of({ class: `cm-mode-${mode}` }),
+  ];
+}
 let followTimer: number | undefined;
 
 /** The preview's top-level block that `line` of the source falls in. */
@@ -69,6 +88,7 @@ export function followLine(line: number): void {
 
 function scheduleFollow(view: EditorView): void {
   window.clearTimeout(followTimer);
+  if (currentMode !== "source") return;
   followTimer = window.setTimeout(() => {
     const head = view.state.selection.main.head;
     followLine(view.state.doc.lineAt(head).number);
@@ -83,9 +103,11 @@ export function mount(
   host: HTMLElement,
   text: string,
   key: string,
+  mode: EditorMode,
   onChange: (text: string) => void,
 ): void {
   unmount();
+  currentMode = mode;
   const view = new EditorView({
     parent: host,
     state: EditorState.create({
@@ -94,7 +116,7 @@ export function mount(
         history(),
         drawSelection(),
         markdown({ base: markdownLanguage }),
-        livePreview(),
+        modeCompartment.of(modeExtension(mode)),
         EditorView.lineWrapping,
         keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
         EditorView.contentAttributes.of({
@@ -112,6 +134,29 @@ export function mount(
   });
   mounted = { view, key };
   view.focus();
+}
+
+/** Draw the editor for `mode`, keeping everything else about it. */
+export function setMode(mode: EditorMode): void {
+  if (mode === currentMode) return;
+  currentMode = mode;
+  if (!mounted || !mounted.view.dom.isConnected) return;
+  const { view } = mounted;
+  view.dispatch({
+    effects: [
+      modeCompartment.reconfigure(modeExtension(mode)),
+      // The lines change height between the two, so the caret is put back
+      // in view rather than left wherever the reflow puts it.
+      EditorView.scrollIntoView(view.state.selection.main.head, { y: "center" }),
+    ],
+  });
+  view.focus();
+  if (mode === "source") scheduleFollow(view);
+}
+
+/** Which mode the editor is drawn in. */
+export function mode(): EditorMode {
+  return currentMode;
 }
 
 /** Take the editor down, if one is mounted. */
@@ -140,7 +185,7 @@ export function revealLine(line: number): void {
 }
 
 function handlePreviewDoubleClick(e: MouseEvent): void {
-  if (!mounted) return;
+  if (!mounted || currentMode !== "source") return;
   const target = e.target instanceof Element ? e.target : null;
   if (!target || target.closest(".editor-host")) return;
   const block = target.closest<HTMLElement>(".markdown-body [data-source-range]");

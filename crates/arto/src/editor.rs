@@ -20,9 +20,11 @@
 
 mod disk;
 mod drafts;
+mod mode;
 mod session;
 mod source;
 
 pub use disk::{read_snapshot, save, SaveError};
 pub use drafts::DRAFTS;
+pub use mode::EditorMode;
 pub use session::{Conflict, EditSession, Notice, SaveRequest};

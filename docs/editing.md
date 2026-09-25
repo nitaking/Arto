@@ -1,14 +1,25 @@
 # Editing
 
 Arto can edit the document it is showing. `Cmd+E` (or the pencil in the
-header, or **File → Edit Document**) opens the Markdown source beside the
-page; the page becomes a live preview of it. `Cmd+S` saves, and **Done**
-(or `Cmd+E` again) goes back to reading.
+header, or **File → Edit Document**) starts editing; `Cmd+S` saves, and
+**Done** (or `Cmd+E` again) goes back to reading.
+
+There are two ways to edit, switched with `Cmd+Shift+E` or the **Rich |
+Source** control in the editor's toolbar. Editing opens in whichever was used
+last in the window, Rich the first time.
+
+| Mode | What it is | For |
+| --- | --- | --- |
+| **Rich** | The page edited in place, across the whole width (see *Live preview* below). | Fixing and rewording what is already there. |
+| **Source** | Every character as written, with the rendered page beside it. | Tables, Mermaid, formulas and images — which Rich leaves as source — and reshaping the document. |
+
+Switching keeps the text, the caret and the undo history: both modes edit the
+same Markdown, and only how it is drawn changes.
 
 The editor works on the source text exactly as it is on disk — nothing goes
 through the rendered HTML — so a save changes only what was typed.
 
-## Live preview
+## Live preview (Rich)
 
 The source is drawn as what it means: headings large, `**bold**` bold,
 `*italic*` italic, `` `code` `` in a code face, links as their text, bullets as
@@ -20,16 +31,20 @@ always shown as they are.
 This is only how the text is displayed. The editor always holds the Markdown
 source itself; clicking a checkbox changes `[ ]` to `[x]` and nothing else.
 
-## Moving between source and page
+## Moving between source and page (Source)
 
 - Moving the caret brings the block it is in into view in the preview.
 - Double-clicking a block in the preview puts the caret on its first source
   line.
+
+## Keys (both modes)
+
 - `Tab` / `Shift+Tab` indent and outdent; `Return` inside a list item or a
   quote continues it, and ends it on an empty item. `Cmd+Z` / `Cmd+Shift+Z`
   undo and redo.
-- Links, diagrams, formulas, the contents gutter and find all work on the
-  preview while editing.
+
+In Source mode, links, diagrams, formulas, the contents gutter and find all
+work on the preview beside the editor.
 
 ## What a save guarantees
 
@@ -56,14 +71,15 @@ document.
 
 ## Keybindings
 
-`editor.toggle` (`Cmd+E`) and `editor.save` (`Cmd+S`) are menu shortcuts in
-every preset. A `mappings.json` written before these existed does not have
+`editor.toggle` (`Cmd+E`), `editor.save` (`Cmd+S`) and `editor.switch_mode`
+(`Cmd+Shift+E`) are menu shortcuts in every preset. A `mappings.json` written before these existed does not have
 them; add them under `menuShortcuts`, or pick a preset again in
 **Preferences → Keybindings**:
 
 ```json
 { "key": "Cmd+e", "action": "editor.toggle" },
-{ "key": "Cmd+s", "action": "editor.save" }
+{ "key": "Cmd+s", "action": "editor.save" },
+{ "key": "Cmd+Shift+e", "action": "editor.switch_mode" }
 ```
 
 ## Limitations

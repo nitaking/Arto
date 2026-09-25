@@ -8,7 +8,8 @@
    everything the reader relies on there — find, the contents gutter, the
    scroll anchor — goes on working on the preview. */
 
-.content-area.editing {
+/* Source: the source on the left, the rendered page it becomes on the right. */
+.content-area.editing[data-editor-mode="source"] {
   .editor-pane {
     flex: 0 0 50%;
     max-width: 50%;
@@ -17,6 +18,22 @@
   /* The page has half the width it was set for; let it use all of it. */
   .markdown-viewer .markdown-body {
     max-width: none;
+  }
+}
+
+/* Rich: the page edited in place, alone. The rendered page stays mounted
+   (the contents and find still read it), it is just not drawn. */
+.content-area.editing[data-editor-mode="rich"] {
+  .editor-pane {
+    flex: 1;
+    max-width: none;
+    border-right: none;
+  }
+
+  .content,
+  .scroll-indicator,
+  .contents-gutter {
+    display: none;
   }
 }
 
@@ -73,6 +90,39 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   opacity: var(--opacity-secondary);
+}
+
+/* Rich | Source, as a segmented pair. */
+.editor-mode-switch {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.editor-mode-option {
+  padding: 2px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-color);
+  }
+
+  &.active {
+    background: var(--bg-row-active);
+    color: var(--text-color);
+  }
+
+  &:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
 }
 
 .editor-button {
@@ -185,6 +235,16 @@
     margin: 0 auto;
     padding: 20px 28px 40vh;
     caret-color: var(--accent-color);
+  }
+
+  /* Source mode: every character as written, in the code face. */
+  .cm-mode-source .cm-scroller {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  .cm-mode-source .cm-content {
+    max-width: none;
   }
 
   .cm-cursor {

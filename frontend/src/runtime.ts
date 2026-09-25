@@ -139,6 +139,8 @@ declare global {
         /** Put text into a new editor in `host`; changes go to the callback. */
         mount: typeof sourceEditor.mount;
         unmount: typeof sourceEditor.unmount;
+        /** Switch between `rich` and `source` without a new editor. */
+        setMode: typeof sourceEditor.setMode;
         /** The editor's text right now, with the key it was mounted under. */
         snapshot: typeof sourceEditor.snapshot;
         /** Put the editor's caret on a source line and scroll it there. */
@@ -431,6 +433,7 @@ export function init(): void {
     editor: {
       mount: sourceEditor.mount,
       unmount: sourceEditor.unmount,
+      setMode: sourceEditor.setMode,
       snapshot: sourceEditor.snapshot,
       revealLine: sourceEditor.revealLine,
       followLine: sourceEditor.followLine,

@@ -65,12 +65,16 @@ pub fn Content() -> Element {
 
     // The source beside the page, while it is being edited.
     let editing = use_memo(move || state.editor.read().is_some());
+    let editor_mode = state.editor_mode;
     use_suspend_editing_on_navigation(state, content);
 
     rsx! {
         div {
             class: "content-area",
             class: if editing() { "editing" },
+            // Rich edits the page in place and hides the rendered one; Source
+            // puts the rendered page beside the source.
+            "data-editor-mode": if editing() { editor_mode().as_str() } else { "" },
 
         // The documents read before this one, at the edge of the page. Always
         // mounted, so that it can be *seen* to arrive and leave: a column that
