@@ -100,10 +100,19 @@ pub fn dispatch_action(action: &Action, mut state: AppState) {
         // Closing the panel hands the keyboard back to the document; that
         // belongs to `hide_panel`, so both the rail and this go through it.
         Action::WindowToggleSidebar => state.toggle_sidebar(),
+        // While the source is being edited, the page shows the buffer; what
+        // reloading means then is checking the buffer against the file.
+        Action::WindowReload if state.editor.peek().is_some() => {
+            state.check_editor_against_disk();
+        }
         Action::WindowReload => {
             let current = *state.reload_trigger.read();
             state.reload_trigger.set(current + 1);
         }
+
+        // --- Editor ---
+        Action::EditorToggle => state.toggle_editing(),
+        Action::EditorSave => state.save_document(),
 
         // --- Clipboard (path variants) ---
         Action::CopyFilePath => {

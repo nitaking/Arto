@@ -13,7 +13,7 @@ export interface KeyEventData {
   modifiers: number;
   repeat: boolean;
   /** Which of the app's own fields the key was typed into, if any. */
-  field?: "search" | "palette";
+  field?: "search" | "palette" | "editor";
 }
 
 type KeydownCallback = (data: KeyEventData) => void;
@@ -134,11 +134,29 @@ function isEditableElement(target: EventTarget | null): boolean {
  * key there out of that field's own bindings only, so what is typed stays
  * typing.
  */
-function fieldOf(target: EventTarget | null): "search" | "palette" | undefined {
+function fieldOf(target: EventTarget | null): "search" | "palette" | "editor" | undefined {
   if (!(target instanceof HTMLElement)) return undefined;
   if (target.classList.contains("search-input")) return "search";
   if (target.classList.contains("palette-input")) return "palette";
+  if (target.classList.contains("editor-input")) return "editor";
   return undefined;
+}
+
+/**
+ * Whether a key typed into the source editor goes to the bindings at all.
+ *
+ * Everything unmodified is text, and so is anything the platform's own text
+ * editing answers (Option+arrow, Ctrl+A on macOS). Only a chord with the
+ * primary modifier is offered to the bindings, and the app then acts on it
+ * only if it is one of the editor's own commands — so Cmd+S saves from inside
+ * the editor on every platform, while Cmd+D stays whatever the text field
+ * makes of it.
+ */
+export function editorForwardsKey(
+  e: { metaKey: boolean; ctrlKey: boolean },
+  isMac: boolean,
+): boolean {
+  return isMac ? e.metaKey : e.ctrlKey;
 }
 
 function buildModifiers(e: KeyboardEvent): number {
@@ -189,6 +207,7 @@ function handleKeydown(e: KeyboardEvent): void {
   }
   const field = fieldOf(e.target);
   if (editable && !field) return;
+  if (field === "editor" && !editorForwardsKey(e, IS_MAC)) return;
 
   const key = e.key;
 

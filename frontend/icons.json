@@ -16,6 +16,7 @@
   "command",
   "copy",
   "copy-plus",
+  "device-floppy",
   "download",
   "edit",
   "external-link",

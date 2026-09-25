@@ -48,8 +48,20 @@ pub fn FileViewer(file: ReadSignal<PathBuf>) -> Element {
     let state = use_context::<AppState>();
     let html = use_signal(String::new);
 
+    // Whether the page shows the buffer being edited rather than the file.
+    // A memo, so that typing (which rewrites the session on every keystroke)
+    // wakes only the preview and not the loader.
+    let editing = use_memo(move || {
+        state
+            .editor
+            .read()
+            .as_ref()
+            .is_some_and(|session| session.path() == file().as_path())
+    });
+
     // Setup component hooks
-    use_file_loader(file, html, state);
+    use_file_loader(file, html, state, editing);
+    use_editor_preview(file, html, state);
     use_file_watcher(file, state);
     use_link_click_handler(file, state);
     use_mermaid_window_handler();
@@ -71,14 +83,98 @@ pub fn FileViewer(file: ReadSignal<PathBuf>) -> Element {
     }
 }
 
+/// Render a file's text the way the viewer shows it: Markdown as a page,
+/// anything else as the text itself.
+fn render_source(content: &str, file: &Path) -> (String, Vec<crate::markdown::HeadingInfo>) {
+    if is_markdown_file(file) {
+        match render_to_html_with_toc(content, file) {
+            Ok(rendered) => return rendered,
+            Err(e) => {
+                // Markdown parsing failed, render as plain text
+                tracing::warn!(
+                    "Markdown parsing failed for {:?}, rendering as plain text: {}",
+                    file,
+                    e
+                );
+            }
+        }
+    } else {
+        tracing::info!("Rendering non-markdown file as plain text: {:?}", file);
+    }
+    let escaped_content = html_escape::encode_text(content);
+    (
+        format!(
+            r#"<pre class="plain-text-viewer">{}</pre>"#,
+            escaped_content
+        ),
+        Vec::new(),
+    )
+}
+
+/// How long the buffer has to stand still before the preview catches up.
+/// Short enough to read as live; long enough that a burst of typing renders
+/// once rather than once per key.
+const PREVIEW_SETTLE: std::time::Duration = std::time::Duration::from_millis(150);
+
+/// Hook to render the buffer being edited, in place of the file.
+///
+/// The page stays the same `FileViewer` while the source is edited, so links,
+/// diagrams, the contents and find all keep working on the preview.
+fn use_editor_preview(file: ReadSignal<PathBuf>, html: Signal<String>, mut state: AppState) {
+    let revision = use_memo(move || {
+        state
+            .editor
+            .read()
+            .as_ref()
+            .filter(|session| session.path() == file().as_path())
+            .map(|session| (session.revision(), session.is_dirty()))
+    });
+
+    use_effect(move || {
+        let Some((revision, dirty)) = revision() else {
+            return;
+        };
+        // A session that has not changed anything shows what the loader
+        // already rendered; rendering it again would only redraw diagrams.
+        if revision == 0 && !dirty {
+            return;
+        }
+        let file = file.peek().clone();
+        let mut html = html;
+        spawn(async move {
+            if revision > 0 {
+                tokio::time::sleep(PREVIEW_SETTLE).await;
+            }
+            let text = match state.editor.peek().as_ref() {
+                Some(session) if session.revision() == revision => session.buffer().to_string(),
+                // Typed again since; the later render has it.
+                _ => return,
+            };
+            let (rendered, headings) = render_source(&text, &file);
+            html.set(rendered);
+            state.headings.set(headings);
+        });
+    });
+}
+
 /// Hook to load and render file content
-fn use_file_loader(file: ReadSignal<PathBuf>, html: Signal<String>, mut state: AppState) {
+fn use_file_loader(
+    file: ReadSignal<PathBuf>,
+    html: Signal<String>,
+    mut state: AppState,
+    editing: Memo<bool>,
+) {
     use_effect(move || {
         let file = file();
         let mut html = html;
         // Reading reload_trigger subscribes this effect to it, so a manual
         // reload or a file-watcher event re-runs the load as well.
         let _ = state.reload_trigger.read();
+        // While the source is edited the page is the buffer's; the loader
+        // comes back when editing ends, and shows what was saved.
+        if editing() {
+            return;
+        }
 
         // Handle scroll position SYNCHRONOUSLY before spawning async task.
         // This ensures the onRenderComplete callback is registered before
@@ -91,42 +187,10 @@ fn use_file_loader(file: ReadSignal<PathBuf>, html: Signal<String>, mut state: A
             // Try to read as string (UTF-8 text file)
             match tokio::fs::read_to_string(file.as_path()).await {
                 Ok(content) => {
-                    // Check if file has markdown extension
-                    if is_markdown_file(&file) {
-                        // Render as markdown with TOC heading extraction
-                        match render_to_html_with_toc(&content, &file) {
-                            Ok((rendered, headings)) => {
-                                html.set(rendered);
-                                state.headings.set(headings);
-                                tracing::trace!("Rendered as Markdown: {:?}", &file);
-                            }
-                            Err(e) => {
-                                // Markdown parsing failed, render as plain text
-                                tracing::warn!(
-                                    "Markdown parsing failed for {:?}, rendering as plain text: {}",
-                                    &file,
-                                    e
-                                );
-                                let escaped_content = html_escape::encode_text(&content);
-                                let plain_html = format!(
-                                    r#"<pre class="plain-text-viewer">{}</pre>"#,
-                                    escaped_content
-                                );
-                                html.set(plain_html);
-                                state.headings.set(Vec::new());
-                            }
-                        }
-                    } else {
-                        // Non-markdown file, render as plain text directly
-                        tracing::info!("Rendering non-markdown file as plain text: {:?}", &file);
-                        let escaped_content = html_escape::encode_text(&content);
-                        let plain_html = format!(
-                            r#"<pre class="plain-text-viewer">{}</pre>"#,
-                            escaped_content
-                        );
-                        html.set(plain_html);
-                        state.headings.set(Vec::new());
-                    }
+                    let (rendered, headings) = render_source(&content, &file);
+                    html.set(rendered);
+                    state.headings.set(headings);
+                    tracing::trace!("Rendered: {:?}", &file);
 
                     // Re-apply search highlighting after content changes
                     // This preserves search state across document changes
@@ -348,8 +412,20 @@ fn use_file_watcher(file: ReadSignal<PathBuf>, mut state: AppState) {
             };
 
             while watcher.recv().await.is_some() {
-                tracing::info!("File change detected, reloading: {:?}", file_path);
-                state.reload_document();
+                // A buffer being edited is never replaced by a reload: the
+                // session compares it with the file and decides.
+                let editing_this = state
+                    .editor
+                    .peek()
+                    .as_ref()
+                    .is_some_and(|session| session.path() == file_path.as_path());
+                if editing_this {
+                    tracing::info!("File change detected while editing: {:?}", file_path);
+                    state.check_editor_against_disk();
+                } else {
+                    tracing::info!("File change detected, reloading: {:?}", file_path);
+                    state.reload_document();
+                }
             }
 
             if let Err(e) = FILE_WATCHER.unwatch(file_path.clone()).await {

@@ -23,6 +23,7 @@ import * as contentCursor from "./content-cursor";
 import * as actionFeedback from "./action-feedback";
 import * as viewportQueue from "./viewport-queue";
 import * as scrollAnchor from "./scroll-anchor";
+import * as sourceEditor from "./editor";
 import type { ScrollAnchor } from "./scroll-anchor";
 
 // Declare global Arto namespace
@@ -134,6 +135,12 @@ declare global {
       feedback: {
         show: typeof actionFeedback.show;
       };
+      editor: {
+        /** Put the editor's caret on a source line and scroll it there. */
+        revealLine: typeof sourceEditor.revealLine;
+        /** Bring the preview's block for a source line into view. */
+        followLine: typeof sourceEditor.followLine;
+      };
       print: {
         /** Switch to the light theme for printing; resolves after Mermaid re-renders. */
         prepare: () => Promise<void>;
@@ -239,6 +246,8 @@ export function init(): void {
   // The scrollbar, brought up to a native width by the pointer arriving at
   // the edge it is on.
   setupScrollbarReach();
+  // The source editor's keys, and the link between its caret and the page.
+  sourceEditor.setup();
   const trackAfterRender = (): void => {
     refreshReadingPosition();
     renderCoordinator.onRenderComplete(trackAfterRender);
@@ -413,6 +422,10 @@ export function init(): void {
     },
     feedback: {
       show: actionFeedback.show,
+    },
+    editor: {
+      revealLine: sourceEditor.revealLine,
+      followLine: sourceEditor.followLine,
     },
     print: {
       prepare: preparePrint,

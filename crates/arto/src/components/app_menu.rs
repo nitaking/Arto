@@ -14,6 +14,7 @@ pub fn AppMenu(on_close: EventHandler<()>) -> Element {
     // Get information on the currently open file (for invalidation determination)
     let current_file = state.current_file();
     let has_file = current_file.is_some();
+    let editing = state.editor.peek().is_some();
 
     let history = state.document().history;
     let can_go_back = history.can_go_back();
@@ -73,6 +74,15 @@ pub fn AppMenu(on_close: EventHandler<()>) -> Element {
                     if let Some(dir) = rfd::FileDialog::new().pick_folder() {
                         state.add_root(dir);
                     }
+                    close();
+                } }
+                ContextMenuSeparator {}
+                ContextMenuItem { label: if editing { "Back to Reading" } else { "Edit Document" }, shortcut: shortcut("editor.toggle"), icon: Some(if editing { IconName::Eye } else { IconName::Edit }), disabled: !has_file, on_click: move |_| {
+                    state.toggle_editing();
+                    close();
+                } }
+                ContextMenuItem { label: "Save", shortcut: shortcut("editor.save"), icon: Some(IconName::DeviceFloppy), disabled: !editing, on_click: move |_| {
+                    state.save_document();
                     close();
                 } }
                 ContextMenuSeparator {}

@@ -1,5 +1,6 @@
 mod context_menu;
 mod context_menu_state;
+mod editor_pane;
 mod file_error_view;
 mod file_viewer;
 mod gutter;
@@ -12,6 +13,7 @@ use dioxus::prelude::*;
 
 use crate::scroll_anchor::ScrollAnchor;
 use crate::state::{AppState, DocumentContent};
+use editor_pane::EditorPane;
 use file_error_view::FileErrorView;
 use file_viewer::FileViewer;
 use gutter::ContentsGutter;
@@ -61,16 +63,26 @@ pub fn Content() -> Element {
     // gutter have nothing to say beside it.
     let showing_welcome = use_memo(move || state.document.read().is_empty());
 
+    // The source beside the page, while it is being edited.
+    let editing = use_memo(move || state.editor.read().is_some());
+    use_suspend_editing_on_navigation(state, content);
+
     rsx! {
         div {
             class: "content-area",
+            class: if editing() { "editing" },
 
         // The documents read before this one, at the edge of the page. Always
         // mounted, so that it can be *seen* to arrive and leave: a column that
         // is only rendered while it applies has no way to fade.
         trace::MarginTrace {
             count: trace_count(),
-            visible: trace_visible() && !showing_welcome(),
+            // The margin it stands in is the editor's while the source is open.
+            visible: trace_visible() && !showing_welcome() && !editing(),
+        }
+
+        if editing() {
+            EditorPane {}
         }
 
         div {
@@ -119,6 +131,28 @@ pub fn Content() -> Element {
         }
         }
     }
+}
+
+/// End the edit when the window moves on to another document.
+///
+/// Following a link, going back, or opening something else from the panel
+/// all change the document without asking the editor. The edit is not lost:
+/// it is kept as a draft and offered again the next time that file is edited.
+fn use_suspend_editing_on_navigation(mut state: AppState, content: Memo<DocumentContent>) {
+    use_effect(move || {
+        let current = match content() {
+            DocumentContent::File(file) => Some(file),
+            _ => None,
+        };
+        let stale = state
+            .editor
+            .peek()
+            .as_ref()
+            .is_some_and(|session| Some(session.path()) != current.as_deref());
+        if stale {
+            state.suspend_editing();
+        }
+    });
 }
 
 /// Ask the chrome set beside the page to measure itself again after a zoom.

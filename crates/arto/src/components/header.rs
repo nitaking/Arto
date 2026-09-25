@@ -27,6 +27,10 @@ pub fn Header() -> Element {
     // other decides how wide it is set. With no document they can do neither,
     // and a control that cannot act is not drawn.
     let reading = !document.is_empty();
+    // A memo: the session changes on every keystroke, and the header only
+    // cares whether there is one.
+    let editing = use_memo(move || state.editor.read().is_some());
+    let editing = editing();
 
     let is_reloading = use_signal(|| false);
     let mut is_reloading_write = is_reloading;
@@ -133,6 +137,17 @@ pub fn Header() -> Element {
                 class: "header-right",
 
                 if reading {
+                // Edit the source beside the page, or go back to reading it.
+                button {
+                    class: "nav-button edit-button",
+                    class: if editing { "active" },
+                    title: if editing { "Back to reading" } else { "Edit source" },
+                    onclick: move |_| state.toggle_editing(),
+                    Icon {
+                        name: if editing { IconName::Eye } else { IconName::Edit },
+                    }
+                }
+
                 // Search button
                 button {
                     class: "nav-button search-button",

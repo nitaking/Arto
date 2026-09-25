@@ -2,6 +2,14 @@
   "$schema": "./preset.schema.json",
   "menuShortcuts": [
     {
+      "key": "Cmd+e",
+      "action": "editor.toggle"
+    },
+    {
+      "key": "Cmd+s",
+      "action": "editor.save"
+    },
+    {
       "key": "Cmd+n",
       "action": "window.new"
     },

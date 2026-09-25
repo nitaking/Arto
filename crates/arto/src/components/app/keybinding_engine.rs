@@ -164,9 +164,14 @@ pub(super) fn setup_keybinding_engine(
                     continue;
                 }
 
+                let in_editor = data.field.as_deref() == Some("editor");
                 let context = match data.field.as_deref() {
                     Some("search") => KeyContext::Search,
                     Some("palette") => KeyContext::Palette,
+                    // The source editor is text: the chord is looked up as it
+                    // would be over the page, and only the editor's own
+                    // commands are acted on (below).
+                    Some("editor") => KeyContext::Content,
                     // A list held open over the document is what the keys are
                     // for as long as it is there, whichever half of the window
                     // the focus was in when it was asked for.
@@ -177,6 +182,14 @@ pub(super) fn setup_keybinding_engine(
                     .read()
                     .borrow_mut()
                     .process_key(&chord, data.repeat, context);
+
+                let result = match result {
+                    KeyMatchResult::Matched(action) if in_editor && !is_editor_command(action) => {
+                        engine.read().borrow_mut().reset();
+                        continue;
+                    }
+                    other => other,
+                };
 
                 match result {
                     KeyMatchResult::Matched(action) => {
@@ -230,4 +243,13 @@ pub(super) fn setup_keybinding_engine(
             tracing::debug!("Keybinding engine rebuilt after config change");
         }
     });
+}
+
+/// The commands a chord typed into the source editor may run.
+///
+/// Anything else a chord is bound to — opening a link, starring the file —
+/// is about the page, and the editor's keys are the editor's.
+fn is_editor_command(action: crate::keybindings::Action) -> bool {
+    use crate::keybindings::Action;
+    matches!(action, Action::EditorSave | Action::EditorToggle)
 }

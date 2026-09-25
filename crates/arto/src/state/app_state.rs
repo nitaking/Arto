@@ -10,6 +10,7 @@ use crate::scroll_anchor::ScrollAnchor;
 use crate::theme::Theme;
 
 mod document;
+mod editor;
 mod focused_panel;
 mod layout;
 mod sidebar;
@@ -131,6 +132,12 @@ pub struct AppState {
     /// from disk without going through the use_memo PartialEq gate in content.rs.
     /// Used by manual reload (header button, context menu) and file watcher.
     pub reload_trigger: Signal<usize>,
+    /// The document's source being edited beside it, while it is.
+    ///
+    /// `None` is reading. The session is the whole of the edit — the buffer,
+    /// the version on disk it came from, and any conflict between them — and
+    /// `crate::editor::EditSession` is where every change to it is decided.
+    pub editor: Signal<Option<crate::editor::EditSession>>,
     /// Which panel currently has keyboard focus (for context-aware keybindings).
     pub focused_panel: Signal<FocusedPanel>,
     /// Where the keyboard is in the panel: the row it is on, in whichever
@@ -198,6 +205,7 @@ impl AppState {
             pending_scroll_fragment: Signal::new(None),
             current_scroll_anchor: Signal::new(ScrollAnchor::TOP),
             reload_trigger: Signal::new(0),
+            editor: Signal::new(None),
             focused_panel: Signal::new(FocusedPanel::Content),
             panel_cursor: Signal::new(None),
             left_hover_active: Signal::new(false),

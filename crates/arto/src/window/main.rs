@@ -466,6 +466,52 @@ pub fn get_window_state(window_id: WindowId) -> Option<AppState> {
     WINDOW_STATES.with(|states| states.borrow().get(&window_id).copied())
 }
 
+/// Another window already editing `path`, if there is one, and whether it
+/// can be seen.
+///
+/// A file is edited in one window at a time: two buffers of the same file
+/// would each be right about their own edits and wrong about the other's, and
+/// they would share one draft.
+pub fn window_editing(path: &std::path::Path, except: WindowId) -> Option<(AppState, bool)> {
+    let visible: Vec<WindowId> = list_visible_main_windows()
+        .iter()
+        .map(|w| w.window.id())
+        .collect();
+    let states: Vec<(WindowId, AppState)> =
+        WINDOW_STATES.with(|states| states.borrow().iter().map(|(id, s)| (*id, *s)).collect());
+    states.into_iter().find_map(|(id, state)| {
+        let editing = id != except
+            && state.editor.try_peek().is_ok_and(|session| {
+                session
+                    .as_ref()
+                    .is_some_and(|session| session.path() == path)
+            });
+        editing.then(|| (state, visible.contains(&id)))
+    })
+}
+
+/// The window an `AppState` belongs to.
+pub fn window_of(state: &AppState) -> Option<WindowId> {
+    WINDOW_STATES.with(|states| {
+        states
+            .borrow()
+            .iter()
+            .find_map(|(id, s)| (s == state).then_some(*id))
+    })
+}
+
+/// Put every window's unsaved edit on disk as a draft.
+///
+/// Called as the app goes away, when no component is guaranteed to be
+/// dropped in an orderly way and `use_drop` may never run.
+pub fn keep_all_drafts() {
+    let states: Vec<AppState> =
+        WINDOW_STATES.with(|states| states.borrow().values().copied().collect());
+    for state in states {
+        state.keep_draft();
+    }
+}
+
 /// Get the last focused window's AppState.
 ///
 /// This provides O(1) access to the last focused window's state via the

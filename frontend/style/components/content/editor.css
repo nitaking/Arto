@@ -1,0 +1,179 @@
+/* =================================
+   The source editor
+   =================================
+
+   Drawn beside the page while the document is being edited, and taking the
+   left half of the reading area: the source reads left to right into what it
+   becomes. The page keeps its own scroll container (`.content`), so
+   everything the reader relies on there — find, the contents gutter, the
+   scroll anchor — goes on working on the preview. */
+
+.content-area.editing {
+  .editor-pane {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+
+  /* The page has half the width it was set for; let it use all of it. */
+  .markdown-viewer .markdown-body {
+    max-width: none;
+  }
+}
+
+.editor-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-color);
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  min-height: var(--hit-size);
+}
+
+.editor-toolbar-spacer {
+  flex: 1;
+}
+
+.editor-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--success-color);
+}
+
+.editor-status.dirty .editor-status-dot {
+  background: var(--warning-color);
+}
+
+.editor-status.conflict {
+  color: var(--error-color);
+
+  .editor-status-dot {
+    background: var(--error-color);
+  }
+}
+
+.editor-format {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  opacity: var(--opacity-secondary);
+}
+
+.editor-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-color);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+
+  &:hover {
+    background: var(--hover-bg);
+  }
+
+  &:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  &.primary {
+    border-color: var(--accent-bg);
+    background: var(--accent-bg);
+    color: var(--accent-fg);
+  }
+
+  &.danger {
+    color: var(--error-color);
+  }
+
+  &.icon-only {
+    padding: 3px;
+    border-color: transparent;
+  }
+
+  .icon {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.editor-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: var(--font-size-md);
+  background: var(--bg-secondary);
+
+  p {
+    flex: 1 1 240px;
+    margin: 0;
+  }
+
+  &.conflict,
+  &.error {
+    background: var(--bgColor-danger-muted);
+    border-bottom-color: var(--borderColor-danger-muted, var(--border-color));
+  }
+
+  &.confirm {
+    background: var(--bgColor-attention-muted);
+  }
+}
+
+.editor-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor-input {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16px 20px 40vh;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--text-color);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  caret-color: var(--accent-color);
+}
+
+@media print {
+  .editor-pane {
+    display: none !important;
+  }
+}

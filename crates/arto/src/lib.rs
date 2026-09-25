@@ -5,6 +5,7 @@ pub mod cli;
 mod components;
 mod config;
 mod document_link;
+mod editor;
 mod events;
 mod files;
 mod fuzzy;
@@ -152,6 +153,19 @@ pub fn run(invocation: cli::CliInvocation) -> RunResult {
                 } => {
                     window::update_last_focused_window(*window_id);
                 }
+                // Leaving a window — for another app, another window, or the
+                // quit that is about to follow — is a moment to have the
+                // unsaved edit on disk, whatever the draft timer says.
+                Event::WindowEvent {
+                    event: WindowEvent::Focused(false),
+                    window_id,
+                    ..
+                } => {
+                    if let Some(state) = window::main::get_window_state(*window_id) {
+                        state.keep_draft();
+                    }
+                }
+                Event::LoopDestroyed => window::main::keep_all_drafts(),
                 Event::MainEventsCleared => {
                     // Defense in depth: drain the IPC queue once per event-loop cycle.
                     //

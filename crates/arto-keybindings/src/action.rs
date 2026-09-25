@@ -66,6 +66,10 @@ pub enum Action {
     // Reload (1)
     WindowReload,
 
+    // Editor (2) — the source beside the page, and writing it back
+    EditorToggle,
+    EditorSave,
+
     // Focus — keyboard-only. One per face of the panel, so that a reader can
     // reach the list they want rather than the one the panel happens to be on.
     FocusPlaces,
@@ -203,6 +207,7 @@ pub const ACTION_GROUPS: &[(&str, &[Action])] = &[
             Action::WindowReload,
         ],
     ),
+    ("Editor", &[Action::EditorToggle, Action::EditorSave]),
     (
         "Focus",
         &[
@@ -339,6 +344,10 @@ impl Action {
             Self::WindowToggleSidebar => "Toggle Sidebar",
             Self::WindowReload => "Reload Document",
 
+            // Editor
+            Self::EditorToggle => "Edit Document",
+            Self::EditorSave => "Save Document",
+
             // File
             Self::FileOpen => "Open File\u{2026}",
             Self::FileOpenDirectory => "Open Directory\u{2026}",
@@ -398,6 +407,8 @@ pub const COMMAND_ACTIONS: &[Action] = &[
     Action::WindowCloseAllWindows,
     Action::WindowToggleSidebar,
     Action::WindowReload,
+    Action::EditorToggle,
+    Action::EditorSave,
     Action::FileOpen,
     Action::FileOpenDirectory,
     Action::FileSetParentAsRoot,
@@ -436,6 +447,8 @@ pub const MENU_ACTIONS: &[Action] = &[
     Action::FileRevealInFinder,
     Action::WindowClose,
     Action::FilePrint,
+    Action::EditorToggle,
+    Action::EditorSave,
     Action::FilePreferences,
     Action::AppAbout,
     Action::SearchOpen,
@@ -539,6 +552,8 @@ action_strings! {
     WindowCloseAllWindows => "window.close_all_windows",
     WindowToggleSidebar => "window.toggle_sidebar",
     WindowReload => "window.reload",
+    EditorToggle => "editor.toggle",
+    EditorSave => "editor.save",
     FocusPlaces => "focus.places",
     FocusStarred => "focus.starred",
     FocusRecent => "focus.recent",
@@ -604,7 +619,7 @@ mod tests {
 
     #[test]
     fn all_actions_count() {
-        assert_eq!(all_actions().len(), 89);
+        assert_eq!(all_actions().len(), 91);
     }
 
     #[test]
