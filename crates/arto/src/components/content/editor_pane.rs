@@ -165,7 +165,11 @@ pub fn EditorPane() -> Element {
                     "{status}"
                 }
                 span { class: "editor-format", title: "Encoding and line endings the file is written with", "{view.format}" }
-                div { class: "editor-toolbar-spacer" }
+                // Anchored here, right after the format, rather than after
+                // the spacer: Source narrows the pane to half the window and
+                // Rich widens it back, so a control pushed against the
+                // pane's own right edge jumps with it. The pane's left edge
+                // never moves, and neither does this.
                 div {
                     class: "editor-mode-switch",
                     role: "radiogroup",
@@ -190,6 +194,7 @@ pub fn EditorPane() -> Element {
                         }
                     }
                 }
+                div { class: "editor-toolbar-spacer" }
                 if can_save {
                     button {
                         class: "editor-button primary",

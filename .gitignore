@@ -11,3 +11,11 @@ crates/arto/VERSION
 
 # Playwright MCP writes its snapshots and console logs here.
 .playwright-mcp/
+
+# Ruflo local secrets and runtime data
+.env
+.env.local
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
